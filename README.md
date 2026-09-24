@@ -1,4 +1,4 @@
-# AI-Code-Setup
+# Markus-AI-Code-Setup
 
 | Herramienta | Uso principal | Configuración recomendada | Cuándo usarla | Link |
 |---|---|---|---|---|
