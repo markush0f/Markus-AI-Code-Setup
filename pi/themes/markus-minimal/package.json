@@ -1,0 +1,18 @@
+{
+  "name": "pi-theme-markus-minimal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal dark theme with session telemetry for Pi",
+  "type": "module",
+  "keywords": ["pi-package", "pi-theme"],
+  "pi": {
+    "themes": ["./themes/markus-minimal.json"],
+    "extensions": ["./extensions/index.ts"]
+  },
+  "scripts": { "test": "node --test tests/*.test.mjs" },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "engines": { "node": ">=22.19.0" }
+}
