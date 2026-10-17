@@ -10,11 +10,11 @@ An extremely minimal dark theme with as much available information as possible. 
 
 ## Constraints
 
-Preserve the native conversation, editor, and tools. Show only available data and identify estimates and missing values. The extension complements the palette because a JSON theme cannot add telemetry. Do not change existing settings without authorization.
+Preserve native conversation behavior, editor controls, tool execution, and keyboard shortcuts; presentation may be customized. Show only available data and identify estimates and missing values. The extension complements the palette because a JSON theme cannot add telemetry. Do not change existing settings without authorization.
 
 ## Implementation decisions
 
-Three compact persistent information groups wrap according to terminal width. Additional details are available through /minimal-info. Cost and token totals cover the active branch and do not represent an invoice. No extra external dependencies or fonts.
+Three compact persistent information rows wrap according to terminal width without blank padding. A native-editor subclass styles borders without replacing controls. Successful read/bash output collapses to summaries, with native details on expansion and native error/streaming/image/truncation rendering. Additional details are available through /minimal-info. Cost and token totals cover the active branch and do not represent an invoice. No extra external dependencies or fonts.
 
 ## Persistent installation
 

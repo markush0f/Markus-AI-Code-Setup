@@ -68,6 +68,16 @@ test('long project names do not crowd out diagnostics; statuses wrap individuall
   }
   assert.ok(rows.every(row=>row.trim()));
 });
+test('connected MCP status is centered and other statuses stay left', () => {
+  const rows = footerRows({...sample, statuses:[
+    {text:'agent active', center:false},
+    {text:'MCP: 1 server enabled', center:true},
+  ]}, 40, helpers);
+  const mcp = rows.find(row => row.includes('MCP:'));
+  const agent = rows.find(row => row.includes('agent active'));
+  assert.equal(mcp.indexOf('MCP:'), 1 + Math.floor((38 - 'MCP: 1 server enabled'.length) / 2));
+  assert.equal(agent.indexOf('agent active'), 1);
+});
 test('footer keeps information groups and marks unavailable context', () => {
   const state = { model:'model',provider:'provider',thinking:'high',busy:false,activity:'ready',
     percent:null,contextTokens:NaN,contextWindow:200000,stats:summarize([]),

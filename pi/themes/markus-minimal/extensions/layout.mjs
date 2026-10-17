@@ -86,7 +86,15 @@ export function footerRows(s, width, { fg, fit, measure }) {
       else renderGroup(right);
     }
   });
-  renderGroup(s.statuses.map(clean).filter(text => text.trim() && !/langfuse/i.test(text))
-    .map(text => fg("muted", text)));
+  const statuses = (s.statuses ?? []).map(item => typeof item === "string"
+    ? { text: item, center: false } : item);
+  const visible = statuses.map(item => ({ ...item, text: clean(item.text) }))
+    .filter(item => item.text.trim() && !/langfuse/i.test(item.text));
+  renderGroup(visible.filter(item => !item.center).map(item => fg("muted", item.text)));
+  for (const item of visible.filter(item => item.center)) {
+    const text = fg("accent", item.text);
+    const pad = Math.max(0, Math.floor((available - measure(text)) / 2));
+    push(" ".repeat(pad) + text);
+  }
   return rows;
 }

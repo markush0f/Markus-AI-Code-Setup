@@ -1,9 +1,13 @@
 import { homedir } from "node:os";
 import { basename } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { VERSION } from "@earendil-works/pi-coding-agent";
+import { CustomEditor, VERSION } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { clean, duration, footerRows, summarize } from "./layout.mjs";
+import { installQuietCodeFences } from "./markdown-style.ts";
+import { compactToolRenderers, shellCallRenderers } from "./tool-style.ts";
+
+installQuietCodeFences();
 
 export default function minimal(pi: ExtensionAPI) {
   let ctx: ExtensionContext;
@@ -17,6 +21,16 @@ export default function minimal(pi: ExtensionAPI) {
   let repaint: (() => void) | undefined;
   let readBranch: (() => string | null) | undefined;
   let readStatuses: (() => string[]) | undefined;
+
+  pi.registerToolRenderer((name, next) => {
+    const native = next();
+    if (!native) return native;
+    if (name === "read") return compactToolRenderers(native, () => enabled);
+    if (name === "bash" || name === "powershell") {
+      return shellCallRenderers(native, () => enabled, name === "bash" ? "$" : "PS>", name === "bash");
+    }
+    return native;
+  });
 
   const refresh = (context: ExtensionContext) => {
     ctx = context;
@@ -47,15 +61,36 @@ export default function minimal(pi: ExtensionAPI) {
     ctx.ui.setHeader((_tui, theme) => ({
       invalidate() {},
       render: (width) => [truncateToWidth(
-        theme.fg("accent", "pi") + theme.fg("muted", ` / ${clean(basename(ctx.cwd))}`)
-          + theme.fg("dim", ` · ${VERSION} · /minimal-info`), width)],
+        theme.fg("accent", "pi") + theme.fg("text", ` / ${clean(basename(ctx.cwd))}`)
+          + (readBranch?.() ? theme.fg("dim", ` @ ${clean(readBranch())}`) : ""), width)],
     }));
+    ctx.ui.setEditorComponent((tui, editorTheme, keybindings) => {
+      class MinimalEditor extends CustomEditor {
+        render(width: number): string[] {
+          if (width <= 0) return [];
+          const nativeBorder = this.borderColor;
+          // Keep Pi's shell-mode border and every native editor interaction.
+          if (!this.getText().trimStart().startsWith("!")) {
+            const tone = ctx.hasPendingMessages() ? "warning"
+              : busy || (this.focused && this.getText().length > 0) ? "accent" : "borderMuted";
+            this.borderColor = text => ctx.ui.theme.fg(tone, text);
+          }
+          try {
+            // Pi's wrapping needs room for a wide glyph plus editor padding.
+            const safeWidth = Math.max(width, 4, this.getPaddingX() * 2 + 2);
+            const rows = super.render(safeWidth);
+            return safeWidth === width ? rows : rows.map(row => truncateToWidth(row, width));
+          } finally { this.borderColor = nativeBorder; }
+        }
+      }
+      return new MinimalEditor(tui, editorTheme, keybindings, { embedWorkingStatus: true });
+    });
     ctx.ui.setFooter((tui, theme, data) => {
       repaint = () => tui.requestRender();
       readBranch = () => data.getGitBranch();
       readStatuses = () => [...data.getExtensionStatuses()]
         .filter(([key, text]) => !/langfuse/i.test(clean(key) + " " + clean(text)))
-        .map(([, text]) => text);
+        .map(([key, text]) => ({ text, center: /(^|[\s_-])mcp([\s_-]|$)/i.test(key) }));
       const unsubscribe = data.onBranchChange(repaint);
       // Timer belongs to the component, so reload/toggle/shutdown disposes it.
       const timer = setInterval(() => tui.requestRender(), 1000);
@@ -107,17 +142,20 @@ export default function minimal(pi: ExtensionAPI) {
     if (ctx?.mode === "tui" && enabled) {
       ctx.ui.setFooter(undefined);
       ctx.ui.setHeader(undefined);
+      ctx.ui.setEditorComponent(undefined);
     }
   });
 
   pi.registerCommand("minimal-toggle", {
-    description: "Toggle between Markus Minimal and the built-in Pi interface",
+    description: "Toggle the minimal header, footer, editor, and compact tool output",
     handler: async (_args, context) => {
       ctx = context;
       if (ctx.mode !== "tui") return;
       enabled = !enabled;
       if (enabled) { refresh(context); mount(); }
-      else { ctx.ui.setHeader(undefined); ctx.ui.setFooter(undefined); }
+      else {
+        ctx.ui.setHeader(undefined); ctx.ui.setFooter(undefined); ctx.ui.setEditorComponent(undefined);
+      }
       ctx.ui.notify(enabled ? "Markus Minimal enabled" : "Built-in Pi interface restored", "info");
     },
   });
