@@ -30,7 +30,7 @@ Other extensions are disabled **only for this invocation**, preventing interface
 From any project:
 
 ```sh
-THEME="$HOME/Documentos/Markus-AI-Code-Setup/pi/themes/markus-minimal"
+THEME="$HOME/Documentos/code-setup/pi/themes/minimal"
 pi --no-extensions -e "$THEME/extensions/index.ts" \
   --theme "$THEME/themes/markus-minimal.json" --use-theme markus-minimal
 ```
@@ -38,7 +38,7 @@ pi --no-extensions -e "$THEME/extensions/index.ts" \
 ### Manual package installation
 
 ```sh
-pi install "$HOME/Documentos/Markus-AI-Code-Setup/pi/themes/markus-minimal"
+pi install "$HOME/Documentos/code-setup/pi/themes/minimal"
 ```
 
 Select **markus-minimal** in `/settings` → Theme. Use `/reload` if Pi was already open.
@@ -46,7 +46,7 @@ Select **markus-minimal** in `/settings` → Theme. Use `/reload` if Pi was alre
 ### Uninstall
 
 ```sh
-pi remove "$HOME/Documentos/Markus-AI-Code-Setup/pi/themes/markus-minimal"
+pi remove "$HOME/Documentos/code-setup/pi/themes/minimal"
 ```
 
 Select another theme in `/settings` if the removed theme is still selected. Installer backups are retained for manual recovery.
