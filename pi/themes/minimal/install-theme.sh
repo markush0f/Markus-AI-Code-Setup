@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Save the local package and default theme for future sessions.
+# Copy the package into Pi and save the default theme for future sessions.
 set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 if ! command -v node >/dev/null 2>&1 || ! command -v pi >/dev/null 2>&1; then
@@ -15,6 +15,7 @@ import crypto from 'node:crypto';
 
 const source = process.argv[2];
 const directory = path.resolve(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi', 'agent'));
+const destination = path.join(directory, 'packages', 'markus-minimal');
 const file = path.join(directory, 'settings.json');
 fs.mkdirSync(directory, { recursive: true });
 const exists = fs.existsSync(file);
@@ -25,14 +26,26 @@ if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
 if (settings.packages !== undefined && !Array.isArray(settings.packages)) {
   throw new Error('packages must be an array; settings were not changed.');
 }
+// Migrate the old repository reference, preserving custom resource filters.
+const isInstallation = item => {
+  const value = typeof item === 'string' ? item : item?.source;
+  return typeof value === 'string' && !/^[a-z]+:/i.test(value) &&
+    [source, destination].includes(path.resolve(directory, value));
+};
 const packages = settings.packages ?? [];
-// Preserve existing package declarations and their filters.
-const existing = packages.find(item => (typeof item === 'string' ? item : item?.source) === source);
-if (existing && typeof existing !== 'string') {
-  throw new Error('This package already has custom filters. Enable it through pi config to preserve them.');
+const existing = packages.find(isInstallation);
+const installed = existing && typeof existing !== 'string'
+  ? { ...existing, source: destination } : destination;
+settings.packages = [...packages.filter(item => !isInstallation(item)), installed];
+// Copy only runtime resources; never create a symlink to the repository.
+if (fs.realpathSync(source) !== (fs.existsSync(destination) ? fs.realpathSync(destination) : destination)) {
+  fs.mkdirSync(destination, { recursive: true });
+  for (const resource of ['package.json', 'extensions', 'themes']) {
+    fs.cpSync(path.join(source, resource), path.join(destination, resource), {
+      recursive: true, dereference: true,
+    });
+  }
 }
-if (!existing) packages.push(source);
-settings.packages = packages;
 settings.theme = 'markus-minimal';
 const suffix = crypto.randomUUID();
 if (exists) {
@@ -50,7 +63,8 @@ try {
 }
 console.log(`Default theme saved to: ${file}`);
 console.log('Open Pi normally, or run /reload in an existing session.');
-console.log('Do not move this folder: Pi loads the package from this location.');
+console.log(`Package copied to: ${destination}`);
+console.log('The original folder can now be moved or removed.');
 if (fs.existsSync(path.join(directory, 'extensions', 'minimal-ui.ts'))) {
   console.log('Warning: disable minimal-ui.ts through pi config if it overrides this interface.');
 }
