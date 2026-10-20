@@ -1,9 +1,8 @@
 import { homedir } from "node:os";
-import { basename } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { CustomEditor, VERSION } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { clean, duration, footerRows, summarize } from "./layout.mjs";
+import { clean, duration, footerRows, headerRows, summarize } from "./layout.mjs";
 import { installQuietCodeFences } from "./markdown-style.ts";
 import { compactToolRenderers, shellCallRenderers } from "./tool-style.ts";
 
@@ -20,7 +19,7 @@ export default function minimal(pi: ExtensionAPI) {
   const running = new Map<string, string>();
   let repaint: (() => void) | undefined;
   let readBranch: (() => string | null) | undefined;
-  let readStatuses: (() => string[]) | undefined;
+  let readStatuses: (() => Array<{ text: string; center: boolean }>) | undefined;
 
   pi.registerToolRenderer((name, next) => {
     const native = next();
@@ -38,8 +37,8 @@ export default function minimal(pi: ExtensionAPI) {
     repaint?.();
   };
   const activity = () => running.size
-    ? `${[...new Set(running.values())].map(clean).join(", ")} (${running.size})`
-    : busy ? "working" : "ready";
+    ? `RUN ${[...new Set(running.values())].map(clean).join(", ")} (${running.size})`
+    : busy ? "WORKING" : "READY";
   const path = () => {
     const home = homedir();
     return ctx.cwd === home ? "~" : ctx.cwd.startsWith(home + "/") ? "~" + ctx.cwd.slice(home.length) : ctx.cwd;
@@ -60,9 +59,10 @@ export default function minimal(pi: ExtensionAPI) {
     if (ctx.mode !== "tui") return;
     ctx.ui.setHeader((_tui, theme) => ({
       invalidate() {},
-      render: (width) => [truncateToWidth(
-        theme.fg("accent", "pi") + theme.fg("text", ` / ${clean(basename(ctx.cwd))}`)
-          + (readBranch?.() ? theme.fg("dim", ` @ ${clean(readBranch())}`) : ""), width)],
+      render: (width) => headerRows({ path: path(), branch: readBranch?.() }, width, {
+        fg: (token, value) => theme.fg(token, value),
+        fit: truncateToWidth, measure: visibleWidth,
+      }),
     }));
     ctx.ui.setEditorComponent((tui, editorTheme, keybindings) => {
       class MinimalEditor extends CustomEditor {
@@ -72,7 +72,7 @@ export default function minimal(pi: ExtensionAPI) {
           // Keep Pi's shell-mode border and every native editor interaction.
           if (!this.getText().trimStart().startsWith("!")) {
             const tone = ctx.hasPendingMessages() ? "warning"
-              : busy || (this.focused && this.getText().length > 0) ? "accent" : "borderMuted";
+              : busy || this.focused ? "accent" : "borderMuted";
             this.borderColor = text => ctx.ui.theme.fg(tone, text);
           }
           try {
@@ -186,7 +186,7 @@ export default function minimal(pi: ExtensionAPI) {
         `Project trust: ${ctx.isProjectTrusted() ? "granted" : "not granted"}`,
         `Active tools: ${pi.getActiveTools().join(", ") || "none"}`,
         `Time open: ${duration(s.elapsed)} · last turn: ${duration(lastRun)}`,
-        ...s.statuses.map(text => `Extension: ${text}`),
+        ...s.statuses.map(status => `Extension: ${typeof status === "string" ? status : status.text}`),
         "Tokens and costs cover the active branch; they are not your provider's bill.",
       ].map(clean));
     },

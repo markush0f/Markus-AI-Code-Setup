@@ -21,7 +21,9 @@ export function compactToolRenderers(native: ToolRenderers, isEnabled: () => boo
       const lines = output ? output.split("\n").length : 0;
       const elapsed = Number.isFinite(context.durationMs)
         ? ` · ${(context.durationMs! / 1000).toFixed(1)}s` : "";
-      return new Text(theme.fg("muted", `done${elapsed} · ${lines} ${lines === 1 ? "line" : "lines"} · expand for output`), 0, 0);
+      return new Text(theme.fg("dim", "COMPLETE")
+        + theme.fg("muted", `  ${lines} ${lines === 1 ? "line" : "lines"}${elapsed}`)
+        + theme.fg("dim", "  expand for output"), 0, 0);
     },
   };
 }
