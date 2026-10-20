@@ -1,22 +1,22 @@
 import { Markdown, truncateToWidth, visibleWidth, type MarkdownTheme } from "@earendil-works/pi-tui";
 
 const patched = Symbol.for("markus.quietCodeFences");
-const PATCH = 3;
+const PATCH = 5;
 const RESET = "\x1b[0m";
 const PANEL = "\x1b[48;2;36;48;43m";
-const SAGE = "\x1b[38;2;169;199;194m";
+const EDGE = "\x1b[38;2;169;199;194m";
 const DIM = "\x1b[38;2;140;150;144m";
 
 type Token = { type?: string; text?: string; lang?: string };
 type RenderToken = (token: Token, width: number, next?: string, style?: unknown) => string[];
 
 function paint(content: string, width: number): string {
-  const inner = Math.max(1, width - 2);
+  const inner = Math.max(0, width - 2);
   let body = visibleWidth(content) > inner ? truncateToWidth(content, inner) : content;
   const gap = inner - visibleWidth(body);
   if (gap > 0) body += " ".repeat(gap);
   body = body.replaceAll(RESET, RESET + PANEL).replaceAll("\x1b[49m", `\x1b[49m${PANEL}`);
-  return PANEL + SAGE + "│ " + RESET + PANEL + body + RESET;
+  return truncateToWidth(PANEL + EDGE + "│ " + RESET + PANEL + body + RESET, width);
 }
 
 function highlightLine(theme: MarkdownTheme, line: string, lang?: string): string {
@@ -27,6 +27,7 @@ function highlightLine(theme: MarkdownTheme, line: string, lang?: string): strin
 
 /** One continuous panel, including blank lines inside the code. */
 export function renderCodePanel(theme: MarkdownTheme, token: Token, width: number, next?: string): string[] {
+  if (width <= 0) return [];
   const source = (token.text ?? "").replace(/\n$/, "").split("\n");
   const lines = source.map((line, index) => {
     let shown = highlightLine(theme, line, token.lang);
